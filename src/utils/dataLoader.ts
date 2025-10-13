@@ -41,8 +41,8 @@ function generateLargeDataset(totalCount: number = 10000): Quote[] {
     
     quotes.push({
       id: `q${i + 1}-${Math.random().toString(36).substr(2, 8)}`,
-      quoteName: `Quote #${i + 1}`,
-      itemName: products[productIndex],
+      quoteName: `${i + 1}`,
+      itemName:  products[productIndex],
       itemDescription: `High-quality outdoor furniture set ${i + 1}. Premium materials and craftsmanship for outdoor living spaces.`,
       quoteDate: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString(),
       committedFlag: Math.random() > 0.5,

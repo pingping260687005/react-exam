@@ -78,7 +78,7 @@ export default function QuoteTable() {
     {
       headerName: 'Expand',
       field: 'expand',
-      width: 80,
+      width: 90,
       cellRenderer: (params: ICellRendererParams) => {
         if (params.data.isDetailRow) {
           return null;
@@ -94,8 +94,15 @@ export default function QuoteTable() {
       filter: false,
     },
     {
+      headerName: 'No',
+      field: 'quoteName',
+      width: 55,
+      autoHeight: true,
+    },
+    {
       headerName: 'Item Name',
       field: 'itemName',
+      wrapText: true,
       width: 200,
       sortable: true,
       filter: true,
@@ -114,6 +121,7 @@ export default function QuoteTable() {
       headerName: 'Supplier',
       field: 'supplier.name',
       width: 150,
+      wrapText: true,
       sortable: true,
       filter: true,
     },
@@ -195,14 +203,16 @@ export default function QuoteTable() {
 
   // Handle cell editing stopped event
   const onCellEditingStopped = useCallback((event: CellEditingStoppedEvent) => {
-    const { data, colDef, newValue, oldValue } = event;
-    if (newValue !== oldValue && data && colDef?.field) {
+    const { data, colDef, newValue, value, oldValue } = event;
+    const currentValue = value||newValue;
+    console.log('.........', currentValue)
+    if (currentValue !== oldValue && data && colDef?.field) {
       const field = colDef.field as keyof Quote;
       console.log('Updating quote and starting editing for:', data.id, field);
       // First start editing to set up the editing state
       actionsRef.current.startEditing(data.id, field, oldValue);
       // Then update the quote value and mark as changed
-      actionsRef.current.updateQuote(data.id, field, newValue);
+      actionsRef.current.updateQuote(data.id, field, currentValue);
     }
   }, []);
 
@@ -264,7 +274,7 @@ export default function QuoteTable() {
             sortable: false,
             filter: false,
           }}
-          animateRows={true}
+          // animateRows={true}
           onCellEditingStopped={onCellEditingStopped}
           singleClickEdit={true}
           stopEditingWhenCellsLoseFocus={true}
@@ -273,9 +283,9 @@ export default function QuoteTable() {
           isFullWidthRow={(params: IsFullWidthRowParams) => params.rowNode.data?.isDetailRow === true}
           fullWidthCellRenderer={(params: ICellRendererParams) => DetailRow(params)}
           rowModelType="clientSide"
-          rowBuffer={10}
-          maxBlocksInCache={10}
-          cacheBlockSize={100}
+          // rowBuffer={10}
+          // maxBlocksInCache={10}
+          // cacheBlockSize={100}
           getRowClass={(params) => {
             if (params.data.isDetailRow) {
               return 'detail-row';
