@@ -1,7 +1,17 @@
 import type { ICellRendererParams } from 'ag-grid-community';
 import { useAppContext } from '../hooks/useAppContext';
+import type { EditingState } from '../types/quote';
 
 type ActionButtonsProps = ICellRendererParams;
+
+type EditLog = {
+  type: 'save' | 'cancel';
+  rowId: string | number;
+  field?: string | null;
+  originalValue?: string | number | boolean | null;
+  newValue?: string | number | boolean | null;
+  timestamp: string;
+};
 
 export default function ActionButtons({ data }: ActionButtonsProps) {
   const { state, actions } = useAppContext();
@@ -12,33 +22,64 @@ export default function ActionButtons({ data }: ActionButtonsProps) {
 
   const isEditing = state.editing.rowId === data.id;
   const hasChanges = isEditing && state.editing.hasChanges;
+
+  // Identify dirty fields by comparing current row data with original snapshot
+  // read changed fields tracked in state by reducer
+  const dirtyFields = state.changedFields?.[data.id] ?? [];
   
-  // Debug logging
-  console.log('ActionButtons Debug:', {
-    rowId: data.id,
-    isEditing,
-    hasChanges,
-    editingState: state.editing,
-    currentRowId: state.editing.rowId
-  });
+  const getValueByPath = (obj: EditingState, path?: string | null) => {
+    if (!obj || !path) return undefined;
+    const parts = path.split('.');
+    const cur: EditingState = obj;
+    let value: string | number | boolean | null = null;
+    for (const p of parts) {
+      if (cur == null) return undefined;
+      value = cur[p as keyof EditingState] as string | number | boolean | null;
+    }
+    return value;
+  };
+
+  const persistToLocalStorage = (type: 'save' | 'cancel') => {
+    try {
+      const logsRaw = localStorage.getItem('quoteEditLogs');
+      const logs: EditLog[] = logsRaw ? JSON.parse(logsRaw) : [];
+      const field = state.editing.field;
+      const originalValue = state.editing.originalValue;
+      const newValue = getValueByPath(data as unknown as EditingState, field);
+      logs.push({
+        type,
+        rowId: data.id,
+        field,
+        originalValue,
+        newValue,
+        timestamp: new Date().toISOString(),
+      });
+      localStorage.setItem('quoteEditLogs', JSON.stringify(logs));
+    } catch (e) {
+      console.error('Failed to persist edit log:', e);
+    }
+  };
 
   const handleSave = () => {
     if (hasChanges) {
-      actions.saveEditing();
-      // TODO: Add server-side save logic here
-      console.log('Saving changes for row:', data.id);
+      persistToLocalStorage('save');
+      // mark row saved (update snapshot) then clear editing state
+      actions.markRowSaved(data.id);
+      console.log('Saved changes for row:', data.id);
     }
   };
 
   const handleCancel = () => {
     if (isEditing) {
+      // revert full row to original snapshot
+      actions.revertRow(data.id);
       actions.cancelEditing();
     }
   };
 
   return (
     <div className="action-buttons">
-      {hasChanges ? (
+      {dirtyFields.length > 0 ? (
         <>
           <button
             type="button"

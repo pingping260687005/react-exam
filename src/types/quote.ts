@@ -59,6 +59,7 @@ export interface EditingState {
   field: string | null;
   originalValue: string | number | boolean | null;
   hasChanges: boolean;
+  type?: 'save' | 'cancel' | 'edit';
 }
 
 /**

@@ -75,6 +75,14 @@ export function AppProvider({ children }: AppProviderProps) {
     dispatch({ type: 'SET_ERROR', payload: error });
   }, []);
 
+  const revertRow = useCallback((id: string) => {
+    dispatch({ type: 'REVERT_ROW', payload: { id } });
+  }, []);
+
+  const markRowSaved = useCallback((id: string) => {
+    dispatch({ type: 'MARK_ROW_SAVED', payload: { id } });
+  }, []);
+
   // Use useRef to stabilize actions object and avoid infinite loops
   const actionsRef = useRef({
     setQuotes,
@@ -87,6 +95,8 @@ export function AppProvider({ children }: AppProviderProps) {
     setError,
     setPagination,
     loadPage,
+    revertRow,
+    markRowSaved,
   });
 
   // Update function references in actionsRef
@@ -101,6 +111,8 @@ export function AppProvider({ children }: AppProviderProps) {
     setError,
     setPagination,
     loadPage,
+    revertRow,
+    markRowSaved,
   };
 
   const actions = actionsRef.current;

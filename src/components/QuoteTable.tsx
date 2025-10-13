@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
+import moment from 'moment';
 import { AgGridReact } from 'ag-grid-react';
-import type { ColDef, GridApi, CellEditingStoppedEvent, ICellRendererParams, IsFullWidthRowParams } from 'ag-grid-community';
+import type { ColDef, CellEditingStoppedEvent, ICellRendererParams, IsFullWidthRowParams } from 'ag-grid-community';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 
@@ -11,7 +12,7 @@ import { ExpandButton, DetailRow, ActionButtons } from './index';
 
 export default function QuoteTable() {
   const { state, actions } = useAppContext();
-  const [, setGridApi] = useState<GridApi | null>(null);
+  // const [, setGridApi] = useState<GridApi | null>(null);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
@@ -60,6 +61,7 @@ export default function QuoteTable() {
     }
   }, [isLoadingMore, state.loading, state.pagination]);
 
+
   // Toggle row expansion state
   const toggleRowExpansion = useCallback((rowId: string) => {
     const newExpandedRows = new Set(expandedRows);
@@ -102,9 +104,9 @@ export default function QuoteTable() {
     {
       headerName: 'Item Description',
       field: 'itemDescription',
-      width: 300,
+      filter: 'agTextColumnFilter',
+      width: 400,
       sortable: true,
-      filter: true,
       wrapText: true,
       autoHeight: true,
     },
@@ -127,17 +129,17 @@ export default function QuoteTable() {
         inputFormat: 'yyyy-mm-dd',
       },
       valueFormatter: (params) => {
-        if (params.value) {
-          const date = new Date(params.value);
-          return date.toLocaleDateString();
-        }
-        return '';
+        const v = params.value as string | Date | undefined;
+        if (!v) return '';
+        const m = moment.utc(v);
+        return m.isValid() ? m.format('YYYY-MM-DD') : '';
       },
       valueParser: (params) => {
-        if (params.newValue) {
-          return new Date(params.newValue).toISOString();
-        }
-        return params.oldValue;
+        const input = params.newValue as string | undefined;
+        if (!input) return params.oldValue;
+        const m = moment.utc(input, 'YYYY-MM-DD', true);
+        if (!m.isValid()) return params.oldValue;
+        return m.toISOString();
       },
     },
     {
@@ -173,17 +175,12 @@ export default function QuoteTable() {
     {
       headerName: 'Committed',
       field: 'committedFlag',
-      width: 180,
+      width: 120,
       sortable: true,
       filter: 'agSetColumnFilter',
       editable: true,
-      cellEditor: 'agSelectCellEditor',
-      cellEditorParams: {
-        values: [true, false],
-      },
-      valueFormatter: (params) => {
-        return params.value ? 'Yes' : 'No';
-      },
+      cellRenderer: 'agCheckboxCellRenderer',
+      cellEditor: 'agCheckboxCellEditor',
     },
     {
       headerName: 'Actions',
@@ -199,15 +196,6 @@ export default function QuoteTable() {
   // Handle cell editing stopped event
   const onCellEditingStopped = useCallback((event: CellEditingStoppedEvent) => {
     const { data, colDef, newValue, oldValue } = event;
-    
-    console.log('Cell editing stopped:', {
-      rowId: data?.id,
-      field: colDef?.field,
-      newValue,
-      oldValue,
-      hasChanges: newValue !== oldValue
-    });
-    
     if (newValue !== oldValue && data && colDef?.field) {
       const field = colDef.field as keyof Quote;
       console.log('Updating quote and starting editing for:', data.id, field);
@@ -217,25 +205,6 @@ export default function QuoteTable() {
       actionsRef.current.updateQuote(data.id, field, newValue);
     }
   }, []);
-
-  // Grid ready callback - use ref to avoid dependency cycles
-  const onGridReady = useCallback((params: { api: GridApi }) => {
-    setGridApi(params.api);
-    
-    // Setup infinite scrolling
-    params.api.addEventListener('bodyScrollEnd', () => {
-      // Get the last visible row index
-      const lastRenderedIndex = params.api.getLastDisplayedRowIndex();
-      const totalRows = params.api.getDisplayedRowCount();
-      
-      // Load more when user scrolls to the last 10 rows
-      if (lastRenderedIndex >= totalRows - 10) {
-        console.log('Triggering loadMore - lastRenderedIndex:', lastRenderedIndex, 'totalRows:', totalRows);
-        // Use loadMoreData function which has proper state access
-        loadMoreData();
-      }
-    });
-  }, [loadMoreData]); // Include loadMoreData in dependencies
 
   // Combine row data (including expanded detail rows)
   const rowData = useMemo(() => {
@@ -287,6 +256,7 @@ export default function QuoteTable() {
       </div>
       <div className="ag-theme-alpine quote-grid">
         <AgGridReact
+          theme="legacy"
           rowData={rowData}
           columnDefs={columnDefs}
           defaultColDef={{
@@ -295,7 +265,6 @@ export default function QuoteTable() {
             filter: false,
           }}
           animateRows={true}
-          onGridReady={onGridReady}
           onCellEditingStopped={onCellEditingStopped}
           singleClickEdit={true}
           stopEditingWhenCellsLoseFocus={true}
@@ -324,6 +293,22 @@ export default function QuoteTable() {
             return undefined;
           }}
         />
+      </div>
+      {/* Footer with Load More */}
+      <div className="table-footer">
+        <div className="footer-info">
+          Page {state.pagination.currentPage} / {state.pagination.totalPages}
+        </div>
+        <button
+          type="button"
+          className="load-more-button"
+          onClick={loadMoreData}
+          disabled={isLoadingMore || state.loading || state.pagination.currentPage >= state.pagination.totalPages}
+        >
+          {state.pagination.currentPage >= state.pagination.totalPages
+            ? 'No more data'
+            : (isLoadingMore || state.loading) ? 'Loading...' : 'Load More (100)'}
+        </button>
       </div>
     </div>
   );
