@@ -16,6 +16,54 @@ interface AppProviderProps {
 export function AppProvider({ children }: AppProviderProps) {
   const [state, dispatch] = useReducer(appReducer, initialState);
 
+  // Read and apply saved edit logs from localStorage to the given quotes
+  type LocalEditLog = {
+    type: 'save' | 'cancel';
+    rowId: string | number;
+    field?: string | null;
+    originalValue?: string | number | boolean | null;
+    newValue?: string | number | boolean | null;
+    timestamp: string;
+  };
+
+  const getLogsFromLocalStorage = (): LocalEditLog[] => {
+    try {
+      const raw = localStorage.getItem('quoteEditLogs');
+      if (!raw) return [];
+      const logs = JSON.parse(raw) as LocalEditLog[];
+      return Array.isArray(logs) ? logs : [];
+    } catch {
+      return [];
+    }
+  };
+
+  // Set nested value by dotted path (e.g. 'costing.firstCost')
+  const setValueByPath = (obj: unknown, path: string, value: unknown) => {
+    const parts = path.split('.');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let cursor: any = obj;
+    for (let i = 0; i < parts.length - 1; i++) {
+      const key = parts[i];
+      cursor[key] = { ...(cursor[key] ?? {}) };
+      cursor = cursor[key];
+    }
+    cursor[parts[parts.length - 1]] = value;
+  };
+
+  const applySavedLogsToQuotes = (quotes: Quote[]): Quote[] => {
+    const logs = getLogsFromLocalStorage().filter((l) => l.type === 'save' && l.field);
+    if (logs.length === 0) return quotes;
+    const quotesMap = new Map<string, Quote>(quotes.map((q) => [String(q.id), { ...q }]));
+    for (const log of logs) {
+      const q = quotesMap.get(String(log.rowId));
+      if (!q || !log.field) continue;
+      const clone: Quote = { ...q } as Quote;
+      setValueByPath(clone, log.field, log.newValue as unknown);
+      quotesMap.set(String(log.rowId), clone);
+    }
+    return Array.from(quotesMap.values());
+  };
+
   // Action creators
   const setQuotes = useCallback((quotes: Quote[], pagination: PaginationState) => {
     dispatch({ type: 'SET_QUOTES', payload: { quotes, pagination } });
@@ -34,8 +82,8 @@ export function AppProvider({ children }: AppProviderProps) {
     dispatch({ type: 'START_EDITING', payload: { rowId, field, originalValue } });
   }, []);
 
-  const cancelEditing = useCallback(() => {
-    dispatch({ type: 'CANCEL_EDITING' });
+  const cancelEditing = useCallback((id: string) => {
+    dispatch({ type: 'CANCEL_EDITING', payload: { id } });
   }, []);
 
   const saveEditing = useCallback(() => {
@@ -60,10 +108,12 @@ export function AppProvider({ children }: AppProviderProps) {
       
       if (page === 1) {
         // First page - replace all data
-        dispatch({ type: 'SET_QUOTES', payload: { quotes: response.quotes, pagination: response.pagination } });
+        const merged = applySavedLogsToQuotes(response.quotes);
+        dispatch({ type: 'SET_QUOTES', payload: { quotes: merged, pagination: response.pagination } });
       } else {
         // Subsequent pages - append data
-        dispatch({ type: 'APPEND_QUOTES', payload: response.quotes });
+        const mergedAppend = applySavedLogsToQuotes(response.quotes);
+        dispatch({ type: 'APPEND_QUOTES', payload: mergedAppend });
         dispatch({ type: 'SET_PAGINATION', payload: response.pagination });
       }
     } catch (error) {
@@ -82,6 +132,8 @@ export function AppProvider({ children }: AppProviderProps) {
   const markRowSaved = useCallback((id: string) => {
     dispatch({ type: 'MARK_ROW_SAVED', payload: { id } });
   }, []);
+
+  
 
   // Use useRef to stabilize actions object and avoid infinite loops
   const actionsRef = useRef({

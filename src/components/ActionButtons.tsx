@@ -30,13 +30,12 @@ export default function ActionButtons({ data }: ActionButtonsProps) {
   const getValueByPath = (obj: EditingState, path?: string | null) => {
     if (!obj || !path) return undefined;
     const parts = path.split('.');
-    const cur: EditingState = obj;
-    let value: string | number | boolean | null = null;
+    let cur: EditingState = obj;
     for (const p of parts) {
       if (cur == null) return undefined;
-      value = cur[p as keyof EditingState] as string | number | boolean | null;
+      cur = cur[p as keyof EditingState] as string | number | boolean | null;
     }
-    return value;
+    return cur;
   };
 
   const persistToLocalStorage = (type: 'save' | 'cancel') => {
@@ -46,6 +45,14 @@ export default function ActionButtons({ data }: ActionButtonsProps) {
       const field = state.editing.field;
       const originalValue = state.editing.originalValue;
       const newValue = getValueByPath(data as unknown as EditingState, field);
+      const hasLog = logs.find(log=>log.rowId===data.id && log.field===field)
+       if(hasLog){
+        hasLog.originalValue=originalValue;
+        hasLog.newValue=newValue||false;
+        hasLog.timestamp=new Date().toISOString();
+        localStorage.setItem('quoteEditLogs', JSON.stringify(logs));
+        return;
+      }
       logs.push({
         type,
         rowId: data.id,
@@ -73,7 +80,7 @@ export default function ActionButtons({ data }: ActionButtonsProps) {
     if (isEditing) {
       // revert full row to original snapshot
       actions.revertRow(data.id);
-      actions.cancelEditing();
+      actions.cancelEditing(data.id);
     }
   };
 

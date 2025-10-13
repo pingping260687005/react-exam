@@ -17,7 +17,7 @@ export interface AppState {
   quotes: Quote[];
   pagination: PaginationState;
   editing: EditingState;
-  // snapshot of quotes as originally loaded (used to detect dirty rows)
+   // snapshot of quotes as originally loaded (used to detect dirty rows)
   originalQuotes: Record<string, Quote>;
   // map of rowId -> array of changed field paths
   changedFields: Record<string, string[]>;
@@ -35,7 +35,7 @@ export type AppAction =
   | { type: 'REVERT_ROW'; payload: { id: string } }
   | { type: 'MARK_ROW_SAVED'; payload: { id: string } }
   | { type: 'START_EDITING'; payload: { rowId: string; field: string; originalValue: string | number | boolean | null } }
-  | { type: 'CANCEL_EDITING' }
+  | { type: 'CANCEL_EDITING'; payload: { id: string;} }
   | { type: 'SAVE_EDITING' }
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SET_ERROR'; payload: string | null }
@@ -52,7 +52,7 @@ export interface AppContextType {
     // field may be a dotted path like 'costing.firstCost'
     updateQuote: (id: string, field: string, value: string | number | boolean) => void;
     startEditing: (rowId: string, field: string, originalValue: string | number | boolean | null) => void;
-    cancelEditing: () => void;
+    cancelEditing: (id: string) => void;
     saveEditing: () => void;
     setLoading: (loading: boolean) => void;
     setError: (error: string | null) => void;

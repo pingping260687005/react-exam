@@ -40,7 +40,8 @@ function generateLargeDataset(totalCount: number = 10000): Quote[] {
     const countryIndex = i % countries.length;
     
     quotes.push({
-      id: `q${i + 1}-${Math.random().toString(36).substr(2, 8)}`,
+      // id: `q${i + 1}-${Math.random().toString(36).substr(2, 8)}`,
+      id: `q${i + 1}`,
       quoteName: `${i + 1}`,
       itemName:  products[productIndex],
       itemDescription: `High-quality outdoor furniture set ${i + 1}. Premium materials and craftsmanship for outdoor living spaces.`,
@@ -74,7 +75,7 @@ export async function loadQuoteDataPaginated(request: PaginationRequest): Promis
     // Initialize dataset on first load
     if (!globalDataset) {
       console.log('Generating large dataset...');
-      globalDataset = generateLargeDataset(10000);
+      globalDataset = generateLargeDataset(10);
       console.log(`Generated ${globalDataset.length} records`);
     }
     
