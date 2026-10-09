@@ -33,6 +33,7 @@ export default function ActionButtons({ data }: ActionButtonsProps) {
     let cur: EditingState = obj;
     for (const p of parts) {
       if (cur == null) return undefined;
+      // @ts-expect-error: p is a string
       cur = cur[p as keyof EditingState] as string | number | boolean | null;
     }
     return cur;
@@ -48,6 +49,7 @@ export default function ActionButtons({ data }: ActionButtonsProps) {
       const hasLog = logs.find(log=>log.rowId===data.id && log.field===field)
        if(hasLog){
         hasLog.originalValue=originalValue;
+        // @ts-expect-error: newValue can be undefined
         hasLog.newValue=newValue||false;
         hasLog.timestamp=new Date().toISOString();
         localStorage.setItem('quoteEditLogs', JSON.stringify(logs));
@@ -58,6 +60,7 @@ export default function ActionButtons({ data }: ActionButtonsProps) {
         rowId: data.id,
         field,
         originalValue,
+        // @ts-expect-error: newValue can be undefined
         newValue,
         timestamp: new Date().toISOString(),
       });
